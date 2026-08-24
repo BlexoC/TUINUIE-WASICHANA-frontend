@@ -3,7 +3,7 @@
    ========================================================================== */
 .registration-page {
   min-height: 100vh;
-  background: #f8f7ff;
+  background: #fcfbfe; /* FIXED: Soft off-white background tint from Figma */
 }
 
 .registration-header {
@@ -13,13 +13,16 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #f0edf7;
 }
 
 .registration-logo {
   font-size: 22px;
   font-weight: 700;
-  color: #4f0aa8;
+  color: #4a148c; /* Purple logo color */
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .registration-header-text {
@@ -40,7 +43,7 @@
 .registration-intro h1 {
   margin-bottom: 10px;
   font-size: 36px;
-  color: #30145c;
+  color: #2b1b4d;
 }
 
 .registration-intro p {
@@ -50,11 +53,37 @@
   color: #666;
 }
 
-.registration-form {
+/* Card Wrap Setup from Figma */
+.registration-card-wrapper {
   background: white;
   padding: 40px;
   border-radius: 16px;
-  box-shadow: 0 8px 30px rgba(50, 20, 100, 0.08);
+  box-shadow: 0 4px 30px rgba(74, 20, 140, 0.03); /* Softened outer shadow */
+  border: 1px solid #f1edfa;
+}
+
+/* Card Header Meta Row Labels */
+.card-top-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.partner-badge {
+  background-color: #f1edfa; /* Soft purple container */
+  color: #5c3fa1; /* Purple text */
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+}
+
+.step-counter {
+  color: #7c728e;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 /* ==========================================================================
@@ -77,7 +106,7 @@
   font-size: 13px;
   z-index: 2;
   position: relative;
-  background: white; /* masks the line directly behind text labels */
+  background: white; 
   padding: 0 10px;
 }
 
@@ -113,10 +142,9 @@
   color: white;
 }
 
-/* Connecting track line between the dots */
 .steps-progress-track {
   position: absolute;
-  top: 18px; /* half of 36px circle height */
+  top: 18px; 
   left: 5%;
   right: 5%;
   height: 3px;
@@ -124,43 +152,45 @@
   z-index: 1;
 }
 
-/* Dynamically styled progress filling line */
 .steps-progress-bar {
   height: 100%;
   background: #4f0aa8;
   transition: width 0.3s ease;
-  width: 0%; /* Default starting value */
+  width: 0%; 
 }
 
 /* ==========================================================================
-   3. Inputs, Icons, & Forms Visual Controls (With Text Color Correction)
+   3. Inputs, Icons, & Forms Visual Controls
    ========================================================================== */
 .form-heading {
-  margin-bottom: 30px;
+  margin-bottom: 32px;
 }
 
 .form-heading h2 {
   margin-bottom: 8px;
-  color: #17233b;
+  color: #2b1b4d; /* FIXED: Title color updated to Deep Purple Indigo */
+  font-size: 24px;
 }
 
 .form-heading p {
-  color: #666;
+  color: #6b7280;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 22px;
+  margin-bottom: 24px;
 }
 
 .form-group label {
   font-weight: 600;
-  color: #26344d;
+  color: #374151;
+  font-size: 14px;
 }
 
-/* Container to handle inputs embedded with vector graphics icons */
 .input-with-icon {
   position: relative;
   display: flex;
@@ -189,12 +219,9 @@
   outline: none;
   background: #ffffff;
   transition: border-color 0.2s ease;
-  
-  /* FIXED: Added clear dark color so text is 100% visible while typing */
   color: #111827; 
 }
 
-/* Creates buffer padding inside elements using icons */
 .input-with-icon input {
   padding-left: 44px;
 }
@@ -213,22 +240,22 @@
 }
 
 /* ==========================================================================
-   4. Drag & Drop File Upload Zones (Step 3 Specifics)
+   4. Drag & Drop File Upload Zones (Step 3 Specifics Matched to Figma)
    ========================================================================== */
 .upload-container-box {
-  border: 2px dashed #cbd5e1;
+  border: 1.5px dashed #d1c4e9; /* FIXED: Soft purple border */
   border-radius: 12px;
   padding: 35px 20px;
   text-align: center;
-  background-color: #fafafa;
+  background-color: #faf8ff; /* FIXED: Light purple background tint */
   position: relative;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
 }
 
 .upload-container-box:hover {
-  border-color: #4f0aa8;
-  background-color: #f5efff;
+  border-color: #4a148c;
+  background-color: #f3edff;
 }
 
 .upload-container-box input[type="file"] {
@@ -239,13 +266,13 @@
   height: 100%;
   opacity: 0;
   cursor: pointer;
+  z-index: 5;
 }
 
-.upload-graphic-icon {
-  font-size: 32px;
+.upload-svg-icon {
+  color: #6a1b9a; /* FIXED: Purple vector icon color tint */
   margin-bottom: 12px;
   display: inline-block;
-  color: #4f0aa8;
 }
 
 .upload-label-text {
@@ -254,14 +281,15 @@
   color: #374151;
 }
 
-.upload-label-text span {
-  color: #4f0aa8;
+.purple-link {
+  color: #6a1b9a; /* FIXED: Explicit underline link color match */
   text-decoration: underline;
+  font-weight: 600;
 }
 
 .upload-constraints-hint {
   font-size: 12px;
-  color: #6b7280;
+  color: #7c728e;
   margin-top: 6px;
   display: block;
 }
@@ -328,20 +356,20 @@
 }
 
 /* ==========================================================================
-   6. Navigation Controls & Footers
+   6. Navigation Controls & Footers (Pill Shapes)
    ========================================================================== */
 .form-actions {
   display: flex;
-  justify-content: space-between; /* Space out previous vs next buttons */
+  justify-content: space-between; 
   align-items: center;
   margin-top: 40px;
 }
 
 .primary-button {
   border: none;
-  border-radius: 25px;
-  padding: 13px 28px;
-  background: #5200a8;
+  border-radius: 50px; /* FIXED: Fully rounded pill shape */
+  padding: 12px 36px;  /* Adjusted spacing size padding */
+  background: #4a148c; /* FIXED: Rich matching purple background color */
   color: white;
   font-size: 15px;
   font-weight: 600;
@@ -353,15 +381,15 @@
 }
 
 .primary-button:hover {
-  background: #430087;
+  background: #380e6f;
 }
 
 .secondary-button {
-  background: none;
-  border: 1px solid #d9d4e5;
-  color: #4f0aa8;
-  border-radius: 25px;
-  padding: 13px 28px;
+  background: transparent;
+  border: 1.5px solid #4a148c; /* FIXED: Matching purple line boundary border */
+  color: #4a148c;
+  border-radius: 50px; /* FIXED: Fully rounded pill shape */
+  padding: 12px 36px;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
@@ -369,8 +397,7 @@
 }
 
 .secondary-button:hover {
-  background: #f5efff;
-  border-color: #4f0aa8;
+  background: #f3edff;
 }
 
 /* ==========================================================================
@@ -385,7 +412,7 @@
     width: 92%;
   }
 
-  .registration-form {
+  .registration-card-wrapper {
     padding: 25px;
   }
 
@@ -402,3 +429,4 @@
     padding: 0;
   }
 }
+

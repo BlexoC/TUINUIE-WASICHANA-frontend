@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-function ReviewSubmit({ formData, previousStep }) {
+function ReviewSubmit({ formData, previousStep, jumpToStep }) {
   const [agreed, setAgreed] = useState(false);
 
   const handleFinalSubmit = (event) => {
@@ -12,21 +12,34 @@ function ReviewSubmit({ formData, previousStep }) {
   };
 
   return (
-    <form onSubmit={handleFinalSubmit}>
-      <div className="form-heading">
-        <h2>Partner with Us</h2>
-        <p>Review and submit your application.</p>
-      </div>
+    <div className="registration-card-wrapper review-page-container">
+      <form onSubmit={handleFinalSubmit}>
+        
+        {/* Page Title & Subtitle Context */}
+        <div className="review-title-section">
+          <h2>Partner with Us</h2>
+          <p>Review and submit your application.</p>
+        </div>
 
-      <div className="review-summary-card">
-        <h2 style={{ fontSize: '20px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          📋 Application Review
-        </h2>
+        {/* Main Review Section Header */}
+        <div className="review-main-header">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="purple-icon">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          <h3>Application Review</h3>
+        </div>
 
-        {/* Section: Org details */}
+        {/* 1. ORGANIZATION DETAILS SECTION */}
         <div className="review-data-section">
           <div className="review-section-header">
             <h3>Organization Details</h3>
+            <button type="button" className="review-edit-trigger" onClick={() => jumpToStep(1)}>
+              <span>✏️</span> Edit
+            </button>
           </div>
           <div className="review-grid-data">
             <div>
@@ -48,10 +61,13 @@ function ReviewSubmit({ formData, previousStep }) {
           </div>
         </div>
 
-        {/* Section: Contact info */}
+        {/* 2. CONTACT INFORMATION SECTION */}
         <div className="review-data-section">
           <div className="review-section-header">
             <h3>Contact Information</h3>
+            <button type="button" className="review-edit-trigger" onClick={() => jumpToStep(2)}>
+              <span>✏️</span> Edit
+            </button>
           </div>
           <div className="review-grid-data">
             <div>
@@ -77,61 +93,84 @@ function ReviewSubmit({ formData, previousStep }) {
           </div>
         </div>
 
-        {/* Section: Files summary */}
-        <div className="review-data-section" style={{ border: 'none', padding: '0', marginBottom: '30px' }}>
+        {/* 3. UPLOADED DOCUMENTS SECTION */}
+        <div className="review-data-section" style={{ border: 'none', paddingBottom: '0', marginBottom: '10px' }}>
           <div className="review-section-header">
             <h3>Uploaded Documents</h3>
+            <button type="button" className="review-edit-trigger" onClick={() => jumpToStep(3)}>
+              <span>✏️</span> Edit
+            </button>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          
+          <div className="review-documents-list">
             {formData.registrationCertificate && (
-              <div style={{ padding: '12px', background: '#f9fafb', borderRadius: '6px', fontSize: '14px' }}>
-                📄 {formData.registrationCertificate.name}
+              <div className="review-doc-row">
+                <div className="doc-info">
+                  <span className="doc-icon">📄</span>
+                  <span className="doc-name">{formData.registrationCertificate.name}</span>
+                </div>
+                <span className="doc-size">1.2 MB</span>
               </div>
             )}
+
             {formData.financialAudit && (
-              <div style={{ padding: '12px', background: '#f9fafb', borderRadius: '6px', fontSize: '14px' }}>
-                🏛️ {formData.financialAudit.name}
+              <div className="review-doc-row">
+                <div className="doc-info">
+                  <span className="doc-icon">🏛️</span>
+                  <span className="doc-name">{formData.financialAudit.name}</span>
+                </div>
+                <span className="doc-size">850 KB</span>
               </div>
             )}
+
             {formData.directorId && (
-              <div style={{ padding: '12px', background: '#f9fafb', borderRadius: '6px', fontSize: '14px' }}>
-                🪪 {formData.directorId.name}
+              <div className="review-doc-row">
+                <div className="doc-info">
+                  <span className="doc-icon">🪪</span>
+                  <span className="doc-name">{formData.directorId.name}</span>
+                </div>
+                <span className="doc-size">500 KB</span>
               </div>
             )}
           </div>
         </div>
-      </div>
 
-      {/* Declaration Checkbox Row layout */}
-      <div style={{ display: 'flex', gap: '12px', marginTop: '24px', alignItems: 'flex-start' }}>
-        <input 
-          type="checkbox" 
-          id="terms-agreed" 
-          checked={agreed} 
-          onChange={(e) => setAgreed(e.target.checked)} 
-          style={{ width: 'auto', marginTop: '4px', cursor: 'pointer' }}
-          required
-        />
-        <label htmlFor="terms-agreed" style={{ fontSize: '14px', color: '#4b5563', lineHeight: '1.4', fontWeight: '400', cursor: 'pointer' }}>
-          I confirm that the information provided is accurate and true to the best of my knowledge. I agree to the <strong>Terms and Conditions</strong> and <strong>Privacy Policy</strong> of Tuinue Wasichana.
-        </label>
-      </div>
+        {/* Declaration Checkbox Row Layout */}
+        <div className="terms-checkbox-container">
+          <input 
+            type="checkbox" 
+            id="terms-agreed" 
+            checked={agreed} 
+            onChange={(e) => setAgreed(e.target.checked)} 
+            required
+          />
+          <label htmlFor="terms-agreed">
+            I confirm that the information provided is accurate and true to the best of my knowledge. I agree to the <span className="purple-link-text">Terms and Conditions</span> and <span className="purple-link-text">Privacy Policy</span> of Tuinue Wasichana.
+          </label>
+        </div>
 
-      {/* Lower Navigation Footer Options */}
-      <div className="form-actions">
-        <button type="button" className="secondary-button" onClick={previousStep}>
-          Previous
-        </button>
-        <button 
-          type="submit" 
-          className="primary-button" 
-          disabled={!agreed}
-          style={{ opacity: agreed ? 1 : 0.6 }}
-        >
-          Submit Application 🚀
-        </button>
-      </div>
-    </form>
+        {/* Lower Navigation Footer Options */}
+        <div className="form-actions">
+          <button type="button" className="secondary-button" onClick={previousStep}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Previous
+          </button>
+          
+          <button 
+            type="submit" 
+            className="primary-button submit-app-btn" 
+            disabled={!agreed}
+            style={{ opacity: agreed ? 1 : 0.6 }}
+          >
+            Submit Application
+            <span className="play-arrow-icon">▷</span>
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 
