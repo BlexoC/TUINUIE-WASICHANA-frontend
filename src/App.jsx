@@ -1,11 +1,10 @@
 import React from 'react';
-import CharityRegistration from './pages/charityRegistration';
+import Auth from './pages/auth';
 
 function App() {
   return (
     <div className="App">
-      {/* This renders your multi-step form coordinator immediately */}
-      <CharityRegistration />
+      <Auth />
     </div>
   );
 }
