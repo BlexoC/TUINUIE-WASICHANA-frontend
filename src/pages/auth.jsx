@@ -39,11 +39,10 @@ function UsersIcon() {
   );
 }
 
-function Auth() {
+function Auth({ onAdmin, onUser, onRegister }) {
   return (
     <div className="auth-welcome-page">
       <div className="welcome-card">
-
         <h1>Welcome!!!</h1>
 
         <p className="welcome-subtitle">
@@ -59,10 +58,10 @@ function Auth() {
         <div className="role-options">
 
           {/* ADMIN */}
-
           <button
             className="role-option"
             type="button"
+            onClick={onAdmin}
           >
             <div className="role-number admin-number">
               1
@@ -82,10 +81,10 @@ function Auth() {
 
 
           {/* USER */}
-
           <button
             className="role-option"
             type="button"
+            onClick={onUser}
           >
             <div className="role-number user-number">
               2
@@ -105,10 +104,10 @@ function Auth() {
 
 
           {/* REGISTER */}
-
           <button
             className="role-option"
             type="button"
+            onClick={onRegister}
           >
             <div className="role-number register-number">
               3
