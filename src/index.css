@@ -1,46 +1,70 @@
-/* =========================================
-   GLOBAL RESET
-========================================= */
+@import "tailwindcss";
 
-* {
-  box-sizing: border-box;
+@theme {
+  --color-primary-50: #faf5ff;
+  --color-primary-100: #f3e8ff;
+  --color-primary-200: #e9d5ff;
+  --color-primary-300: #d8b4fe;
+  --color-primary-400: #c084fc;
+  --color-primary-500: #a855f7;
+  --color-primary-600: #9333ea;
+  --color-primary-700: #7e22ce;
+  --color-primary-800: #6b21a8;
+  --color-primary-900: #581c87;
+  --color-primary-950: #3b0764;
+
+  --color-brand-primary: #581c87;
+  --color-brand-dark: #3b0764;
+  --color-brand-light: #f3e8ff;
+  --color-brand-border: #e9d5ff;
+
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Playfair Display', Georgia, Cambria, 'Times New Roman', Times, serif;
 }
 
-html {
-  width: 100%;
-  min-width: 100%;
-  min-height: 100%;
+@layer base {
+  html {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  }
+  
+  h1, h2, h3, .font-serif {
+    font-family: 'Playfair Display', Georgia, Cambria, 'Times New Roman', Times, serif;
+  }
 
-  margin: 0;
-  padding: 0;
+  :focus-visible {
+    outline: 2px solid #6b21a8;
+    outline-offset: 2px;
+  }
 }
 
-body {
-  width: 100%;
-  min-width: 100%;
-  min-height: 100vh;
-
-  margin: 0;
-  padding: 0;
+/* Custom Smooth Transitions & Micro-Interactions */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.6);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
-#root {
-  width: 100%;
-  min-width: 100%;
-  min-height: 100vh;
-
-  margin: 0;
-  padding: 0;
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
-
-/* =========================================
-   FORM ELEMENTS
-========================================= */
-
-button,
-input,
-textarea,
-select {
-  font: inherit;
+.animate-shimmer {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
 }
