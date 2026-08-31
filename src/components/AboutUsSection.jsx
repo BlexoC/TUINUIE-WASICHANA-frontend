@@ -159,7 +159,7 @@ const AboutUsSection = () => {
             <div className="lg:col-span-5 relative">
               <div className="rounded-3xl overflow-hidden shadow-xl aspect-4/3 sm:aspect-square lg:aspect-4/3 relative border-4 border-white">
                 <img
-    src="/src/assets/images/hero_schoolgirls_1787607019295.jpg"
+    src="/images/hero_schoolgirls_1787607019295.jpg"
     alt="Heshima project schoolgirls thriving in education"
     referrerPolicy="no-referrer"
     className="w-full h-full object-cover"

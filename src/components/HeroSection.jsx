@@ -13,7 +13,7 @@ const HeroSection = () => {
     /* Background Schoolgirls Photo */
   }
         <img
-    src="/src/assets/images/hero_schoolgirls_1787607019295.jpg"
+    src="/images/hero_schoolgirls_1787607019295.jpg"
     alt="Tuinue Wasichana - Empowering Kenyan schoolgirls"
     referrerPolicy="no-referrer"
     className="absolute inset-0 w-full h-full object-cover object-[center_35%] opacity-90"
