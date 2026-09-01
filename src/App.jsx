@@ -1,8 +1,7 @@
-
 import { useState } from "react";
-import { Routes, Route, Link } from "react-router-dom";
+import { Routes, Route, Link, Navigate } from "react-router-dom";
 import { Heart, Mail, Phone, MapPin } from "lucide-react";
-import { useAppDispatch } from "./store";
+import { useAppDispatch, useAppSelector } from "./store";
 import { Navbar } from "./components/Navbar";
 import { HeroSection } from "./components/HeroSection";
 import { AboutUsSection } from "./components/AboutUsSection";
@@ -69,6 +68,13 @@ function CharitiesPage() {
       <CharitiesSection />
     </div>;
 }
+function ProtectedRoute({ allowedRoles, children }) {
+  const { user, isAuthenticated } = useAppSelector((state) => state.auth);
+  if (!isAuthenticated || !user || !allowedRoles.includes(user.role)) {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+}
 function App() {
   const dispatch = useAppDispatch();
   return <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans selection:bg-purple-200 selection:text-purple-900">
@@ -86,8 +92,8 @@ function App() {
           <Route path="/about" element={<AboutPage />} />
           <Route path="/charities" element={<CharitiesPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
-          <Route path="/charity-dashboard" element={<CharityDashboard />} />
-          <Route path="/admin" element={<AdminPanel />} />
+          <Route path="/charity-dashboard" element={<ProtectedRoute allowedRoles={["charity", "admin"]}><CharityDashboard /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin"]}><AdminPanel /></ProtectedRoute>} />
           <Route path="/donor-profile" element={<DonorProfile />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="*" element={<HomePage />} />

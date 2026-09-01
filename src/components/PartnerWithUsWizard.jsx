@@ -54,7 +54,7 @@ const PartnerWithUsWizard = () => {
       target_amount: Number(targetAmount) || 5e5,
       raised_amount: 0,
       currency: "KES",
-      image_url: "/src/assets/images/dignity_kits_1787607033508.jpg",
+      image_url: "/images/dignity_kits_1787607033508.jpg",
       what_they_do: missionStatement,
       how_it_started: `Established in ${yearEstablished} as a ${orgType} dedicated to eradicating school absenteeism due to period poverty.`,
       impact_summary: "Pending administrative verification & accreditation.",
