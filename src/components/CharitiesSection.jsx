@@ -153,7 +153,7 @@ const CharitiesSection = () => {
     }
                   <div className="relative aspect-video bg-slate-100 overflow-hidden">
                     <img
-      src={charity.image_url || "/src/assets/images/dignity_kits_1787607033508.jpg"}
+      src={charity.image_url || "/images/dignity_kits_1787607033508.jpg"}
       alt={charity.name}
       referrerPolicy="no-referrer"
       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
