@@ -12,13 +12,15 @@ const ReceiptModal = () => {
     return null;
   }
   const d = activeReceiptDonation;
-  const formattedDate = new Date(d.created_at).toLocaleDateString("en-GB", {
+  const formattedDate = new Date(d.donated_at || d.created_at || Date.now()).toLocaleDateString("en-GB", {
     day: "numeric",
     month: "long",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit"
   });
+  const receiptRef = d.provider_transaction_id || `TW-${String(d.id).padStart(6, "0")}`;
+  const amountDisplay = Number(d.amount).toLocaleString();
   const handlePrint = () => {
     window.print();
     showToast("Sent receipt to system print dialog");
@@ -29,16 +31,15 @@ TUINUE WASICHANA FOUNDATION - OFFICIAL DONATION RECEIPT
 Registration: CBO/KFI/2021/0984 | Tax Exemption: KRA-DOD-2024
 ======================================================
 
-Receipt Number:   ${d.mpesa_receipt || d.stripe_payment_id || `TW-${d.id.toUpperCase()}`}
+Receipt Number:   ${receiptRef}
 Transaction Date: ${formattedDate}
 Donor Name:       ${d.donor_name || "Generous Supporter"}
-Donor Email:      ${d.donor_email || "N/A"}
 Beneficiary:      ${d.charity_name}
 
-Amount Donated:   ${d.currency} ${d.amount.toLocaleString()}
-Frequency:        ${d.frequency.toUpperCase()}
-Payment Method:   ${d.payment_method.toUpperCase()}
-Status:           ${d.payment_status.toUpperCase()}
+Amount Donated:   ${d.currency} ${amountDisplay}
+Type:             ${(d.donation_type || "one_time").toUpperCase()}
+Payment Method:   ${(d.payment_provider || "").toUpperCase()}
+Status:           ${(d.payment_status || "").toUpperCase()}
 
 ======================================================
 Thank you for standing for menstrual dignity and girls' education.
@@ -123,7 +124,7 @@ Official Verification: https://tuinuewasichana.or.ke/verify/${d.id}
                 Official Tax Receipt
               </span>
               <div className="text-xs font-mono text-slate-600">
-                Ref: {d.mpesa_receipt || d.stripe_payment_id || `TW-${d.id.slice(-6).toUpperCase()}`}
+                Ref: {receiptRef}
               </div>
               <div className="text-[11px] text-slate-400">{formattedDate}</div>
             </div>
@@ -141,7 +142,6 @@ Official Verification: https://tuinuewasichana.or.ke/verify/${d.id}
                 {d.donor_name || "Generous Supporter"}
               </div>
               {d.donor_email && <div className="text-xs text-slate-600 mt-0.5">{d.donor_email}</div>}
-              {d.mpesa_phone && <div className="text-xs text-slate-600 mt-0.5">Phone: {d.mpesa_phone}</div>}
               <div className="text-xs text-slate-500 mt-1">
                 Type: {d.is_anonymous ? "Anonymous Gift" : "Recognized Donor"}
               </div>
@@ -172,7 +172,7 @@ Official Verification: https://tuinuewasichana.or.ke/verify/${d.id}
               <thead>
                 <tr className="border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
                   <th className="py-2.5">Description</th>
-                  <th className="py-2.5 text-center">Frequency</th>
+                  <th className="py-2.5 text-center">Type</th>
                   <th className="py-2.5 text-center">Payment Method</th>
                   <th className="py-2.5 text-right">Amount</th>
                 </tr>
@@ -188,23 +188,23 @@ Official Verification: https://tuinuewasichana.or.ke/verify/${d.id}
                     </p>
                   </td>
                   <td className="py-3.5 text-center capitalize text-slate-700">
-                    {d.frequency}
+                    {(d.donation_type || "one_time").replace("_", " ")}
                   </td>
                   <td className="py-3.5 text-center text-slate-700 uppercase">
-                    {d.payment_method}
+                    {d.payment_provider}
                   </td>
                   <td className="py-3.5 text-right font-bold text-slate-950 font-serif text-lg">
-                    {d.currency} {d.amount.toLocaleString()}
+                    {d.currency} {amountDisplay}
                   </td>
                 </tr>
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-slate-900">
                   <td colSpan={3} className="py-3 font-bold text-slate-900 text-base">
-                    Total Tax-Exempt Contribution
+                    Total Contribution
                   </td>
                   <td className="py-3 text-right font-black text-purple-950 text-xl font-serif">
-                    {d.currency} {d.amount.toLocaleString()}
+                    {d.currency} {amountDisplay}
                   </td>
                 </tr>
               </tfoot>

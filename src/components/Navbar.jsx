@@ -13,7 +13,7 @@ import {
   Award
 } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "../store";
-import { logout, switchRoleDirectly } from "../store/slices/authSlice";
+import { logoutUser } from "../store/slices/authSlice";
 import { openDonationModal } from "../store/slices/donationSlice";
 import { useToast } from "./ToastContext";
 const pathToTab = (pathname) => {
@@ -31,7 +31,7 @@ const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const handleLogout = () => {
-    dispatch(logout());
+    dispatch(logoutUser());
     showToast("You have been logged out successfully.", "info");
     setIsUserDropdownOpen(false);
     setIsMobileMenuOpen(false);
@@ -120,33 +120,6 @@ const Navbar = () => {
     /* Right Section: Actions matching Figma */
   }
           <div className="hidden md:flex items-center space-x-4">
-            {
-    /* Quick Developer / Demo Role Switcher (Compact & Subtle) */
-  }
-            <div className="flex items-center bg-slate-100/90 p-1 rounded-full border border-slate-200 text-xs mr-1">
-              <button
-    onClick={() => dispatch(switchRoleDirectly("donor"))}
-    title="Switch demo to Donor"
-    className={`px-2.5 py-0.5 rounded-full transition-all text-[11px] font-medium cursor-pointer ${user?.role === "donor" && isAuthenticated ? "bg-purple-900 text-white font-bold shadow-xs" : "text-slate-600 hover:text-purple-950"}`}
-  >
-                Donor
-              </button>
-              <button
-    onClick={() => dispatch(switchRoleDirectly("charity"))}
-    title="Switch demo to Charity"
-    className={`px-2.5 py-0.5 rounded-full transition-all text-[11px] font-medium cursor-pointer ${user?.role === "charity" && isAuthenticated ? "bg-purple-900 text-white font-bold shadow-xs" : "text-slate-600 hover:text-purple-950"}`}
-  >
-                Charity
-              </button>
-              <button
-    onClick={() => dispatch(switchRoleDirectly("admin"))}
-    title="Switch demo to Admin"
-    className={`px-2.5 py-0.5 rounded-full transition-all text-[11px] font-medium cursor-pointer ${user?.role === "admin" && isAuthenticated ? "bg-purple-900 text-white font-bold shadow-xs" : "text-slate-600 hover:text-purple-950"}`}
-  >
-                Admin
-              </button>
-            </div>
-
             {
     /* Auth Buttons */
   }
@@ -364,44 +337,6 @@ const Navbar = () => {
                 <Shield className="w-4 h-4" />
                 <span>Admin Panel</span>
               </button>}
-          </div>
-
-          {
-    /* Quick Role Switcher (Mobile) */
-  }
-          <div className="pt-2 border-t border-slate-100">
-            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-              Demo Session Role:
-            </p>
-            <div className="grid grid-cols-3 gap-1.5">
-              <button
-    onClick={() => {
-      dispatch(switchRoleDirectly("donor"));
-      setIsMobileMenuOpen(false);
-    }}
-    className={`py-1.5 rounded-lg text-xs font-semibold ${user?.role === "donor" ? "bg-purple-900 text-white" : "bg-slate-100 text-slate-700"}`}
-  >
-                Donor
-              </button>
-              <button
-    onClick={() => {
-      dispatch(switchRoleDirectly("charity"));
-      setIsMobileMenuOpen(false);
-    }}
-    className={`py-1.5 rounded-lg text-xs font-semibold ${user?.role === "charity" ? "bg-purple-900 text-white" : "bg-slate-100 text-slate-700"}`}
-  >
-                Charity
-              </button>
-              <button
-    onClick={() => {
-      dispatch(switchRoleDirectly("admin"));
-      setIsMobileMenuOpen(false);
-    }}
-    className={`py-1.5 rounded-lg text-xs font-semibold ${user?.role === "admin" ? "bg-purple-900 text-white" : "bg-slate-100 text-slate-700"}`}
-  >
-                Admin
-              </button>
-            </div>
           </div>
 
           {

@@ -1,36 +1,87 @@
-import { createSlice } from "@reduxjs/toolkit";
-const initialSavedUser = (() => {
-  try {
-    const saved = localStorage.getItem("tw_user");
-    return saved ? JSON.parse(saved) : null;
-  } catch {
-    return null;
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import {
+  authApi,
+  getAccessToken,
+  getStoredUser,
+  setSession,
+  clearSession,
+} from "../../lib/api";
+
+// ---------------------------------------------------------------------------
+// Thunks — every one of these talks to the real Flask API. No mock users,
+// no fabricated tokens.
+// ---------------------------------------------------------------------------
+export const registerUser = createAsyncThunk(
+  "auth/register",
+  async (payload, { rejectWithValue }) => {
+    try {
+      const data = await authApi.register(payload);
+      // Set the token first so the follow-up /auth/me call is authenticated.
+      setSession({ accessToken: data.access_token, refreshToken: data.refresh_token });
+      // The register/login response omits charity_id/donor_id (only /auth/me
+      // returns the "detailed" profile) — fetch it immediately so charity
+      // and donor dashboards have what they need without a page refresh.
+      const detailedUser = await authApi.me().catch(() => data.user);
+      setSession({ user: detailedUser });
+      return detailedUser;
+    } catch (err) {
+      return rejectWithValue(err.message || "Registration failed");
+    }
   }
-})();
-const initialSavedToken = (() => {
-  try {
-    return localStorage.getItem("tw_token") || null;
-  } catch {
-    return null;
+);
+
+export const loginUser = createAsyncThunk(
+  "auth/login",
+  async (payload, { rejectWithValue }) => {
+    try {
+      const data = await authApi.login(payload);
+      setSession({ accessToken: data.access_token, refreshToken: data.refresh_token });
+      const detailedUser = await authApi.me().catch(() => data.user);
+      setSession({ user: detailedUser });
+      return detailedUser;
+    } catch (err) {
+      return rejectWithValue(err.message || "Invalid email or password");
+    }
   }
-})();
+);
+
+// Re-hydrates the authenticated user's profile on app load if a token is
+// already stored (survives a page refresh).
+export const fetchCurrentUser = createAsyncThunk(
+  "auth/fetchCurrentUser",
+  async (_, { rejectWithValue }) => {
+    try {
+      const user = await authApi.me();
+      setSession({ user });
+      return user;
+    } catch (err) {
+      return rejectWithValue(err.message || "Session expired");
+    }
+  }
+);
+
+export const logoutUser = createAsyncThunk("auth/logout", async () => {
+  try {
+    if (getAccessToken()) {
+      await authApi.logout();
+    }
+  } catch {
+    // Best-effort — clear the local session regardless of API result.
+  }
+  clearSession();
+});
+
 const initialState = {
-  user: initialSavedUser || {
-    id: "usr_donor_demo",
-    username: "Amina Kimani",
-    email: "amina.kimani@example.org",
-    role: "donor",
-    created_at: (/* @__PURE__ */ new Date()).toISOString()
-  },
-  isAuthenticated: true,
-  token: initialSavedToken || "demo_jwt_token_donor",
+  user: getStoredUser(),
+  isAuthenticated: !!getAccessToken(),
   loading: false,
   error: null,
   isRoleSelectOpen: false,
   isAuthModalOpen: false,
   authMode: "login",
-  selectedRoleForAuth: "donor"
+  selectedRoleForAuth: "donor",
 };
+
 const authSlice = createSlice({
   name: "auth",
   initialState,
@@ -55,107 +106,74 @@ const authSlice = createSlice({
     },
     closeAuthModal: (state) => {
       state.isAuthModalOpen = false;
-    },
-    setAuthLoading: (state, action) => {
-      state.loading = action.payload;
-    },
-    setAuthError: (state, action) => {
-      state.error = action.payload;
-      state.loading = false;
-    },
-    loginSuccess: (state, action) => {
-      state.user = action.payload.user;
-      state.token = action.payload.token;
-      state.isAuthenticated = true;
-      state.loading = false;
       state.error = null;
-      state.isAuthModalOpen = false;
-      state.isRoleSelectOpen = false;
-      try {
-        localStorage.setItem("tw_user", JSON.stringify(action.payload.user));
-        localStorage.setItem("tw_token", action.payload.token);
-      } catch (e) {
-        console.error(e);
-      }
     },
-    switchRoleDirectly: (state, action) => {
-      const role = action.payload;
-      let mockUser;
-      if (role === "admin") {
-        mockUser = {
-          id: "usr_admin_1",
-          username: "Sarah Ochieng (Platform Admin)",
-          email: "admin@tuinuewasichana.org",
-          role: "admin",
-          created_at: (/* @__PURE__ */ new Date()).toISOString()
-        };
-      } else if (role === "charity") {
-        mockUser = {
-          id: "usr_charity_heshima",
-          username: "Mary Wanjiku (Heshima Coordinator)",
-          email: "coordinator@heshimaproject.org",
-          role: "charity",
-          charity_id: "ch_heshima",
-          created_at: (/* @__PURE__ */ new Date()).toISOString()
-        };
-      } else {
-        mockUser = {
-          id: "usr_donor_demo",
-          username: "Amina Kimani",
-          email: "amina.kimani@example.org",
-          role: "donor",
-          created_at: (/* @__PURE__ */ new Date()).toISOString()
-        };
-      }
-      state.user = mockUser;
-      state.isAuthenticated = true;
-      state.token = `jwt_token_${role}_simulated`;
-      state.isRoleSelectOpen = false;
-      state.isAuthModalOpen = false;
-      try {
-        localStorage.setItem("tw_user", JSON.stringify(mockUser));
-        localStorage.setItem("tw_token", state.token);
-      } catch (e) {
-        console.error(e);
-      }
+    clearAuthError: (state) => {
+      state.error = null;
     },
-    logout: (state) => {
+    // Used by the API client when a refresh attempt fails so the redux
+    // state stays in sync with the (already-cleared) local session.
+    sessionExpired: (state) => {
       state.user = null;
       state.isAuthenticated = false;
-      state.token = null;
-      state.error = null;
-      try {
-        localStorage.removeItem("tw_user");
-        localStorage.removeItem("tw_token");
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  }
+    },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(registerUser.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(registerUser.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload;
+        state.isAuthenticated = true;
+        state.isAuthModalOpen = false;
+        state.isRoleSelectOpen = false;
+      })
+      .addCase(registerUser.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(loginUser.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(loginUser.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload;
+        state.isAuthenticated = true;
+        state.isAuthModalOpen = false;
+        state.isRoleSelectOpen = false;
+      })
+      .addCase(loginUser.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(fetchCurrentUser.fulfilled, (state, action) => {
+        state.user = action.payload;
+        state.isAuthenticated = true;
+      })
+      .addCase(fetchCurrentUser.rejected, (state) => {
+        state.user = null;
+        state.isAuthenticated = false;
+      })
+      .addCase(logoutUser.fulfilled, (state) => {
+        state.user = null;
+        state.isAuthenticated = false;
+        state.error = null;
+      });
+  },
 });
-const {
+
+export const {
   openRoleSelect,
   closeRoleSelect,
   setAuthMode,
   openAuthModal,
   closeAuthModal,
-  setAuthLoading,
-  setAuthError,
-  loginSuccess,
-  switchRoleDirectly,
-  logout
+  clearAuthError,
+  sessionExpired,
 } = authSlice.actions;
-var stdin_default = authSlice.reducer;
-export {
-  closeAuthModal,
-  closeRoleSelect,
-  stdin_default as default,
-  loginSuccess,
-  logout,
-  openAuthModal,
-  openRoleSelect,
-  setAuthError,
-  setAuthLoading,
-  setAuthMode,
-  switchRoleDirectly
-};
+
+export default authSlice.reducer;

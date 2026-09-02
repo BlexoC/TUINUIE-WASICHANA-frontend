@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   User,
@@ -7,26 +8,48 @@ import {
   Sparkles
 } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "../store";
-import { markAsRead, markAllAsRead } from "../store/slices/notificationSlice";
-import { openDonationModal } from "../store/slices/donationSlice";
+import {
+  fetchNotifications,
+  markNotificationRead,
+  markAllNotificationsRead
+} from "../store/slices/notificationSlice";
+
+const timeAgo = (isoString) => {
+  if (!isoString) return "";
+  const diffMs = Date.now() - new Date(isoString).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+};
+
 const NotificationsPage = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const onNavigateToCharities = () => navigate("/charities");
-  const { notifications, unreadCount } = useAppSelector(
+  const { notifications, unreadCount, loading } = useAppSelector(
     (state) => state.notification
   );
+
+  useEffect(() => {
+    dispatch(fetchNotifications());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const getIcon = (type) => {
     switch (type) {
-      case "account":
+      case "application_approved":
+      case "application_rejected":
         return <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-900 flex items-center justify-center shrink-0">
             <User className="w-5 h-5" />
           </div>;
-      case "donation":
+      case "donation_successful":
         return <div className="w-10 h-10 rounded-full bg-pink-100 text-pink-700 flex items-center justify-center shrink-0">
             <Heart className="w-5 h-5 fill-pink-600" />
           </div>;
-      case "payment":
       default:
         return <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
             <Clock className="w-5 h-5" />
@@ -50,7 +73,7 @@ const NotificationsPage = () => {
 
           {unreadCount > 0 && <button
     id="btn-mark-all-read"
-    onClick={() => dispatch(markAllAsRead())}
+    onClick={() => dispatch(markAllNotificationsRead())}
     className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-purple-900 bg-purple-50 hover:bg-purple-100 rounded-full transition-colors border border-purple-200"
   >
               <CheckCheck className="w-4 h-4" />
@@ -62,11 +85,17 @@ const NotificationsPage = () => {
     /* Notifications List matching Figma Screenshot */
   }
         <div className="space-y-4">
+          {loading && notifications.length === 0 && (
+            <p className="text-sm text-slate-500 text-center py-12">Loading notifications…</p>
+          )}
+          {!loading && notifications.length === 0 && (
+            <p className="text-sm text-slate-500 text-center py-12">No notifications yet.</p>
+          )}
           {notifications.map((item) => <div
     key={item.id}
     id={`notification-card-${item.id}`}
-    onClick={() => dispatch(markAsRead(item.id))}
-    className={`p-6 bg-white rounded-2xl border transition-all ${!item.read ? "border-purple-200 shadow-sm bg-purple-50/20" : "border-slate-200 shadow-xs"}`}
+    onClick={() => !item.is_read && dispatch(markNotificationRead(item.id))}
+    className={`p-6 bg-white rounded-2xl border transition-all ${!item.is_read ? "border-purple-200 shadow-sm bg-purple-50/20" : "border-slate-200 shadow-xs"}`}
   >
               <div className="flex items-start gap-4">
                 {getIcon(item.type)}
@@ -77,7 +106,7 @@ const NotificationsPage = () => {
                       {item.title}
                     </h3>
                     <span className="text-xs text-slate-400 font-medium whitespace-nowrap">
-                      {item.time_ago}
+                      {timeAgo(item.created_at)}
                     </span>
                   </div>
 
@@ -89,7 +118,7 @@ const NotificationsPage = () => {
     /* Contextual Action Buttons matching Figma */
   }
                   <div className="flex flex-wrap items-center gap-2">
-                    {item.type === "account" && <>
+                    {(item.type === "application_approved" || item.type === "application_rejected") && <>
                         <button
     onClick={onNavigateToCharities}
     className="px-4 py-1.5 bg-purple-900 text-white rounded-full text-xs font-medium hover:bg-purple-950 transition-colors"
@@ -98,22 +127,13 @@ const NotificationsPage = () => {
                         </button>
                       </>}
 
-                    {item.type === "donation" && <>
+                    {item.type === "donation_successful" && <>
                         <button
     onClick={onNavigateToCharities}
     className="px-4 py-1.5 bg-purple-900 text-white rounded-full text-xs font-medium hover:bg-purple-950 transition-colors flex items-center gap-1.5"
   >
                           <Sparkles className="w-3.5 h-3.5" />
                           <span>View Impact</span>
-                        </button>
-                      </>}
-
-                    {item.type === "payment" && <>
-                        <button
-    onClick={() => dispatch(openDonationModal({}))}
-    className="px-4 py-1.5 bg-emerald-700 text-white rounded-full text-xs font-medium hover:bg-emerald-800 transition-colors"
-  >
-                          Pay Now
                         </button>
                       </>}
                   </div>

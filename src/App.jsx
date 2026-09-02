@@ -1,8 +1,10 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Routes, Route, Link } from "react-router-dom";
 import { Heart, Mail, Phone, MapPin } from "lucide-react";
-import { useAppDispatch } from "./store";
+import { useAppDispatch, useAppSelector } from "./store";
+import { fetchCurrentUser } from "./store/slices/authSlice";
+import { fetchNotifications } from "./store/slices/notificationSlice";
 import { Navbar } from "./components/Navbar";
 import { HeroSection } from "./components/HeroSection";
 import { AboutUsSection } from "./components/AboutUsSection";
@@ -71,6 +73,19 @@ function CharitiesPage() {
 }
 function App() {
   const dispatch = useAppDispatch();
+  const { isAuthenticated } = useAppSelector((state) => state.auth);
+
+  // Re-hydrate the logged-in user's profile from the real API on first
+  // load / refresh, since a stored token doesn't guarantee it's still
+  // valid (it may have expired or been revoked server-side).
+  useEffect(() => {
+    if (isAuthenticated) {
+      dispatch(fetchCurrentUser());
+      dispatch(fetchNotifications());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans selection:bg-purple-200 selection:text-purple-900">
       {
     /* Top Navbar */

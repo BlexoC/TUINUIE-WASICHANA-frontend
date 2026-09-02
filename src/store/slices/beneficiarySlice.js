@@ -1,101 +1,100 @@
-import { createSlice } from "@reduxjs/toolkit";
-const initialBeneficiaries = [
-  {
-    id: "ben_001",
-    charity_id: "ch_heshima",
-    full_name: "Faith Chebet",
-    age: 14,
-    school_name: "Moi Forces Academy Primary",
-    grade_level: "Grade 8",
-    kits_received: 6,
-    attendance_rate: 98,
-    previous_attendance_rate: 74,
-    grade_progression: "Math: C+ -> A, Overall: Top 5%",
-    story: "Faith aspires to become an aerospace engineer. Before receiving regular dignity kits, she missed an average of 4 school days every month. Her attendance is now nearly 100%.",
-    status: "active",
-    last_kit_date: "2024-07-20",
-    created_at: "2023-11-15T09:00:00Z",
-    is_offline_synced: true
-  },
-  {
-    id: "ben_002",
-    charity_id: "ch_heshima",
-    full_name: "Amina Halima",
-    age: 15,
-    school_name: "Barani Secondary School",
-    grade_level: "Form 1",
-    kits_received: 8,
-    attendance_rate: 96,
-    previous_attendance_rate: 78,
-    grade_progression: "Sciences: B- -> A, Top in class",
-    story: "Amina was awarded top student in mathematics after having continuous school attendance throughout term 1 and term 2.",
-    status: "active",
-    last_kit_date: "2024-07-18",
-    created_at: "2023-11-20T10:00:00Z",
-    is_offline_synced: true
-  },
-  {
-    id: "ben_003",
-    charity_id: "ch_heshima",
-    full_name: "Mercy Achieng",
-    age: 16,
-    school_name: "Lake View Girls High",
-    grade_level: "Form 2",
-    kits_received: 9,
-    attendance_rate: 99,
-    previous_attendance_rate: 80,
-    grade_progression: "Physics & Chem: Distinction",
-    story: "Mercy is the captain of the science club and leads peer mentorship on menstrual health for junior students.",
-    status: "active",
-    last_kit_date: "2024-07-15",
-    created_at: "2023-12-01T11:00:00Z",
-    is_offline_synced: true
-  },
-  {
-    id: "ben_004",
-    charity_id: "ch_emergency_kits",
-    full_name: "Zawadi Mwende",
-    age: 13,
-    school_name: "Kilifi Township Primary",
-    grade_level: "Grade 7",
-    kits_received: 4,
-    attendance_rate: 94,
-    previous_attendance_rate: 70,
-    grade_progression: "English: C -> B+",
-    story: "Zawadi lives with her grandmother. Emergency dignity kit deliveries ensured she sat for her mid-term exams without stress.",
-    status: "active",
-    last_kit_date: "2024-06-30",
-    created_at: "2024-01-20T08:30:00Z",
-    is_offline_synced: true
-  },
-  {
-    id: "ben_005",
-    charity_id: "ch_heshima",
-    full_name: "Esther Njeri",
-    age: 17,
-    school_name: "Nakuru Girls High",
-    grade_level: "Form 4",
-    kits_received: 14,
-    attendance_rate: 100,
-    previous_attendance_rate: 82,
-    grade_progression: "KCSE Mean: A- (Pre-Med Admission)",
-    story: "Graduated with honors and now enrolled in university pursuing Medicine. Continues to mentor young beneficiaries.",
-    status: "graduated",
-    last_kit_date: "2024-04-10",
-    created_at: "2023-01-10T14:00:00Z",
-    is_offline_synced: true
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import { beneficiariesApi, inventoryApi } from "../../lib/api";
+
+// ---------------------------------------------------------------------------
+// Thunks
+//
+// NOTE on field shapes: the backend's `beneficiaries` table only stores
+// full_name, age, gender, location, description, photo_url — it has no
+// columns for school_name, grade_level, kits_received, attendance_rate,
+// grade_progression, or per-beneficiary "story" text the way the old
+// mock data did. Those richer fields would need new columns/tables on
+// the backend to be persisted for real; for now `description` is used
+// as a free-text field that can hold whatever narrative a charity wants
+// to record, and kit counts should be read from the real inventory
+// distribution log (fetchDistributionsForBeneficiary) rather than a
+// fabricated `kits_received` counter.
+// ---------------------------------------------------------------------------
+
+export const fetchBeneficiaries = createAsyncThunk(
+  "beneficiary/fetchAll",
+  async (params, { rejectWithValue }) => {
+    try {
+      return await beneficiariesApi.list(params);
+    } catch (err) {
+      return rejectWithValue(err.message || "Failed to load beneficiaries");
+    }
   }
-];
+);
+
+export const createBeneficiary = createAsyncThunk(
+  "beneficiary/create",
+  async (payload, { rejectWithValue }) => {
+    try {
+      return await beneficiariesApi.create(payload);
+    } catch (err) {
+      return rejectWithValue(err.message || "Failed to add beneficiary");
+    }
+  }
+);
+
+export const updateBeneficiary = createAsyncThunk(
+  "beneficiary/update",
+  async ({ id, payload }, { rejectWithValue }) => {
+    try {
+      return await beneficiariesApi.update(id, payload);
+    } catch (err) {
+      return rejectWithValue(err.message || "Failed to update beneficiary");
+    }
+  }
+);
+
+export const deleteBeneficiary = createAsyncThunk(
+  "beneficiary/delete",
+  async (id, { rejectWithValue }) => {
+    try {
+      await beneficiariesApi.remove(id);
+      return id;
+    } catch (err) {
+      return rejectWithValue(err.message || "Failed to delete beneficiary");
+    }
+  }
+);
+
+// Records a real inventory distribution (decrements stock, logs the
+// beneficiary who received it) instead of just bumping a local counter.
+export const distributeKitToBeneficiary = createAsyncThunk(
+  "beneficiary/distributeKit",
+  async ({ inventoryItemId, beneficiaryId, quantity = 1, notes }, { rejectWithValue }) => {
+    try {
+      const distribution = await inventoryApi.distribute(inventoryItemId, {
+        beneficiary_id: beneficiaryId,
+        quantity,
+        notes,
+      });
+      return { beneficiaryId, distribution };
+    } catch (err) {
+      return rejectWithValue(err.message || "Failed to record distribution");
+    }
+  }
+);
+
 const initialState = {
-  beneficiaries: initialBeneficiaries,
+  beneficiaries: [],
+  pagination: null,
   selectedBeneficiary: null,
   isAddModalOpen: false,
   filterStatus: "all",
   searchQuery: "",
   loading: false,
+  error: null,
+  // Offline queueing is a real UX concern for field workers with patchy
+  // connectivity, but there is no backend sync endpoint for it yet — this
+  // stays a local-only staging area until such an endpoint exists.
   isOfflineMode: false,
-  offlineQueue: []
+  offlineQueue: [],
 };
+
 const beneficiarySlice = createSlice({
   name: "beneficiary",
   initialState,
@@ -118,91 +117,71 @@ const beneficiarySlice = createSlice({
     setOfflineMode: (state, action) => {
       state.isOfflineMode = action.payload;
     },
-    addBeneficiary: (state, action) => {
-      if (state.isOfflineMode) {
-        const queueItem = {
-          id: `queue_${Date.now()}`,
-          type: "add_beneficiary",
-          charity_id: action.payload.charity_id,
-          data: action.payload,
-          timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-          status: "pending"
-        };
-        state.offlineQueue.push(queueItem);
-        state.beneficiaries.unshift({
-          ...action.payload,
-          is_offline_synced: false
-        });
-      } else {
-        state.beneficiaries.unshift({
-          ...action.payload,
-          is_offline_synced: true
-        });
-      }
+    queueOfflineBeneficiary: (state, action) => {
+      state.offlineQueue.push({
+        id: `queue_${Date.now()}`,
+        type: "add_beneficiary",
+        data: action.payload,
+        timestamp: new Date().toISOString(),
+        status: "pending",
+      });
+      state.beneficiaries.unshift({ ...action.payload, is_offline_synced: false });
       state.isAddModalOpen = false;
     },
-    distributeKitToBeneficiary: (state, action) => {
-      const ben = state.beneficiaries.find((b) => b.id === action.payload.id);
-      if (ben) {
-        ben.kits_received += 1;
-        ben.last_kit_date = action.payload.kitDate;
-        if (state.isOfflineMode) {
-          state.offlineQueue.push({
-            id: `queue_dist_${Date.now()}`,
-            type: "distribute_kit",
-            charity_id: ben.charity_id,
-            data: { id: ben.id, kitDate: action.payload.kitDate },
-            timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-            status: "pending"
-          });
-          ben.is_offline_synced = false;
-        }
-      }
-    },
-    syncOfflineQueue: (state) => {
+    clearOfflineQueue: (state) => {
       state.beneficiaries.forEach((b) => {
         b.is_offline_synced = true;
       });
       state.offlineQueue = [];
     },
-    updateBeneficiaryAttendance: (state, action) => {
-      const ben = state.beneficiaries.find((b) => b.id === action.payload.id);
-      if (ben) {
-        ben.attendance_rate = action.payload.attendance;
-      }
-    },
-    deleteBeneficiary: (state, action) => {
-      state.beneficiaries = state.beneficiaries.filter(
-        (b) => b.id !== action.payload
-      );
-    }
-  }
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchBeneficiaries.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchBeneficiaries.fulfilled, (state, action) => {
+        state.loading = false;
+        state.beneficiaries = (action.payload.items || []).map((b) => ({
+          ...b,
+          is_offline_synced: true,
+        }));
+        state.pagination = action.payload.pagination || null;
+      })
+      .addCase(fetchBeneficiaries.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(createBeneficiary.fulfilled, (state, action) => {
+        state.beneficiaries.unshift({ ...action.payload, is_offline_synced: true });
+        state.isAddModalOpen = false;
+      })
+      .addCase(updateBeneficiary.fulfilled, (state, action) => {
+        const idx = state.beneficiaries.findIndex((b) => b.id === action.payload.id);
+        if (idx !== -1) state.beneficiaries[idx] = { ...state.beneficiaries[idx], ...action.payload };
+      })
+      .addCase(deleteBeneficiary.fulfilled, (state, action) => {
+        state.beneficiaries = state.beneficiaries.filter((b) => b.id !== action.payload);
+      })
+      .addCase(distributeKitToBeneficiary.fulfilled, (state, action) => {
+        const ben = state.beneficiaries.find((b) => b.id === action.payload.beneficiaryId);
+        if (ben) {
+          ben.last_distribution = action.payload.distribution;
+        }
+      });
+  },
 });
-const {
+
+export const {
   openAddBeneficiaryModal,
   closeAddBeneficiaryModal,
   setBeneficiaryFilterStatus,
   setBeneficiarySearchQuery,
   toggleOfflineMode,
   setOfflineMode,
-  addBeneficiary,
-  distributeKitToBeneficiary,
-  syncOfflineQueue,
-  updateBeneficiaryAttendance,
-  deleteBeneficiary
+  queueOfflineBeneficiary,
+  clearOfflineQueue,
 } = beneficiarySlice.actions;
-var stdin_default = beneficiarySlice.reducer;
-export {
-  addBeneficiary,
-  closeAddBeneficiaryModal,
-  stdin_default as default,
-  deleteBeneficiary,
-  distributeKitToBeneficiary,
-  openAddBeneficiaryModal,
-  setBeneficiaryFilterStatus,
-  setBeneficiarySearchQuery,
-  setOfflineMode,
-  syncOfflineQueue,
-  toggleOfflineMode,
-  updateBeneficiaryAttendance
-};
+
+export default beneficiarySlice.reducer;

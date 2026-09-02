@@ -2,8 +2,12 @@ import { useState } from "react";
 import { X, MessageSquare, Send, User, Clock } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "../store";
 import { closeMessageModal, sendCharityMessage } from "../store/slices/charitySlice";
-import { addNotification } from "../store/slices/notificationSlice";
 import { useToast } from "./ToastContext";
+
+// NOTE: there is no backend table for charity-donor messaging yet, so
+// sendCharityMessage only stores this in the current browser session
+// (see charitySlice.js). It will not survive a refresh or reach the
+// charity in real life until a real messages endpoint exists.
 const CharityMessageModal = () => {
   const dispatch = useAppDispatch();
   const { showToast } = useToast();
@@ -30,14 +34,7 @@ const CharityMessageModal = () => {
       created_at: (/* @__PURE__ */ new Date()).toISOString()
     };
     dispatch(sendCharityMessage(newMsg));
-    dispatch(
-      addNotification({
-        title: "Message Sent to Coordinator",
-        message: `Your inquiry about "${charity.name}" has been forwarded to ${charity.contact_person}.`,
-        type: "message"
-      })
-    );
-    showToast(`Inquiry sent to ${charity.contact_person} at ${charity.name}!`);
+    showToast(`Inquiry saved for this session (no messaging backend yet) — ${charity.name}`);
     setSubject("");
     setMessage("");
   };
