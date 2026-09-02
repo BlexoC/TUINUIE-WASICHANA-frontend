@@ -13,7 +13,11 @@ import {
   Award
 } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "../store";
+<<<<<<< HEAD
 import { logoutUser } from "../store/slices/authSlice";
+=======
+import { logout } from "../store/slices/authSlice";
+>>>>>>> a05ea03eacad7504cf83e5bd46e441dc47b10aef
 import { openDonationModal } from "../store/slices/donationSlice";
 import { useToast } from "./ToastContext";
 const pathToTab = (pathname) => {
@@ -99,7 +103,7 @@ const Navbar = () => {
             {
     /* If Charity or Admin role, show contextual shortcut */
   }
-            {user?.role === "charity" && <button
+            {(user?.role === "charity" || user?.role === "admin") && <button
     id="nav-charity-dashboard"
     onClick={() => handleNavClick("charity-dashboard")}
     className={`text-sm font-medium transition-all py-1 cursor-pointer ${currentTab === "charity-dashboard" ? "text-purple-950 border-b-2 border-purple-800 font-bold" : "text-purple-800 hover:text-purple-950 font-semibold"}`}

@@ -24,7 +24,50 @@ const PartnerWithUsWizard = () => {
   const [contactPhone, setContactPhone] = useState("");
 
   if (!partnerWizardOpen) return null;
+<<<<<<< HEAD
 
+=======
+  const handleSubmitApplication = () => {
+    const newCharity = {
+      id: `ch_app_${Date.now()}`,
+      user_id: user?.id,
+      name: name || "New Hope Girls Initiative",
+      year_established: yearEstablished,
+      org_type: orgType,
+      mission_statement: missionStatement || "Empowering adolescent schoolgirls with essential hygiene kits and menstrual health counseling.",
+      address: address || "Nairobi County, Kenya",
+      email: email || "contact@newhope.org",
+      phone: phone || "+254 712 000 111",
+      website,
+      contact_person: contactPerson || "Program Director",
+      status: "pending",
+      // Requires admin approval workflow
+      category,
+      tag: category,
+      target_amount: Number(targetAmount) || 5e5,
+      raised_amount: 0,
+      currency: "KES",
+      image_url: "/images/dignity_kits_1787607033508.jpg",
+      what_they_do: missionStatement,
+      how_it_started: `Established in ${yearEstablished} as a ${orgType} dedicated to eradicating school absenteeism due to period poverty.`,
+      impact_summary: "Pending administrative verification & accreditation.",
+      ngo_cert_name: ngoCert,
+      audit_doc_name: auditDoc,
+      director_id_name: directorId,
+      created_at: (/* @__PURE__ */ new Date()).toISOString(),
+      beneficiaries_count: 0
+    };
+    dispatch(addCharityApplication(newCharity));
+    dispatch(
+      addNotification({
+        title: "Charity Application Submitted",
+        message: `Your application for "${newCharity.name}" has been received. Our compliance team will review your submitted documents.`,
+        type: "account"
+      })
+    );
+    setIsSubmitted(true);
+  };
+>>>>>>> a05ea03eacad7504cf83e5bd46e441dc47b10aef
   const handleClose = () => {
     setStep(1);
     dispatch(closePartnerWizard());
