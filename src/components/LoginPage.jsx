@@ -262,7 +262,7 @@ const LoginPage = ({ initialRole = null }) => {
                     Admin
                   </h3>
                   <p className="text-xs text-slate-500 truncate">
-                    Manage platform and users
+                    Oversee organization operations
                   </p>
                 </div>
               </button>
@@ -356,7 +356,7 @@ const LoginPage = ({ initialRole = null }) => {
     onClick={() => handleAutoFill("admin")}
     className="px-2 py-1.5 text-[11px] font-semibold bg-slate-100 text-slate-800 hover:bg-slate-200 rounded-lg transition-colors border border-slate-300"
   >
-                    Demo Admin
+                    Demo Staff
                   </button>
                 </div>
               </div>
@@ -386,8 +386,8 @@ const LoginPage = ({ initialRole = null }) => {
                       <Users className="w-4 h-4" />
                     </div>}
                   <div>
-                    <p className="text-xs font-bold text-slate-900 capitalize">
-                      {selectedRole === "register" ? "New Account Registration" : `${selectedRole} Authentication`}
+                    <p className="text-xs font-bold text-slate-900">
+                      {selectedRole === "register" ? "New Account Registration" : `${selectedRole.charAt(0).toUpperCase()}${selectedRole.slice(1)} Authentication`}
                     </p>
                     <p className="text-[10px] text-slate-500">
                       {selectedRole === "admin" ? "Requires security key credentials" : selectedRole === "user" ? "Donor & Charity portal access" : "Join the menstrual dignity network"}
@@ -447,12 +447,13 @@ const LoginPage = ({ initialRole = null }) => {
     /* Name field (Register only) */
   }
               {selectedRole === "register" && <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  <label htmlFor="login-name-field" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                     {formData.userSubRole === "charity" ? "Organization Name *" : "Full Name *"}
                   </label>
                   <div className="relative">
                     <UserIcon className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
+    id="login-name-field"
     type="text"
     placeholder={formData.userSubRole === "charity" ? "e.g. Heshima Project Foundation" : "e.g. Amina Kimani"}
     value={formData.name ?? ""}
@@ -466,12 +467,13 @@ const LoginPage = ({ initialRole = null }) => {
     /* Email Address */
   }
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                <label htmlFor="login-email-field" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Email Address *
                 </label>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
+    id="login-email-field"
     type="email"
     placeholder="name@example.org"
     value={formData.email ?? ""}
@@ -486,7 +488,7 @@ const LoginPage = ({ initialRole = null }) => {
   }
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  <label htmlFor="login-password-field" className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                     Password *
                   </label>
                   {selectedRole === "user" && <button
@@ -503,6 +505,7 @@ const LoginPage = ({ initialRole = null }) => {
                 <div className="relative">
                   <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
+    id="login-password-field"
     type={showPassword ? "text" : "password"}
     placeholder="••••••••"
     value={formData.password ?? ""}
@@ -523,12 +526,13 @@ const LoginPage = ({ initialRole = null }) => {
     /* Confirm Password (Register only) */
   }
               {selectedRole === "register" && <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  <label htmlFor="login-confirm-password-field" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                     Confirm Password *
                   </label>
                   <div className="relative">
                     <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
+    id="login-confirm-password-field"
     type={showPassword ? "text" : "password"}
     placeholder="••••••••"
     value={formData.confirmPassword ?? ""}
@@ -543,7 +547,7 @@ const LoginPage = ({ initialRole = null }) => {
   }
               {selectedRole === "admin" && <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    <label htmlFor="login-admin-key-field" className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                       Admin Security Key / Master PIN *
                     </label>
                     <span className="text-[10px] text-purple-700 font-mono">
@@ -553,6 +557,7 @@ const LoginPage = ({ initialRole = null }) => {
                   <div className="relative">
                     <Key className="w-4 h-4 text-purple-700 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
+    id="login-admin-key-field"
     type="password"
     placeholder="TW-ADMIN-2026"
     value={formData.adminKey ?? ""}
