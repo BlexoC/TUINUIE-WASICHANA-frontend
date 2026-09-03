@@ -323,4 +323,27 @@ export const adminApi = {
   dashboard: () => request("/admin/dashboard"),
 };
 
+// ---------------------------------------------------------------------------
+// M-Pesa (Safaricom Daraja)
+// ---------------------------------------------------------------------------
+export const mpesaApi = {
+  /**
+   * Initiate an STK push. Returns { checkout_request_id, message }.
+   * @param {{ phone: string, amount: number, charity_id: number, project_id?: number }} payload
+   */
+  stkPush: (payload) => request("/mpesa/stkpush", { method: "POST", body: payload }),
+
+  /**
+   * Poll for the result of a pending STK push.
+   * Returns { result_code: string, result_desc: string }.
+   * result_code "0" = paid, "1032" = cancelled, "1037" = timeout.
+   * @param {string} checkoutRequestId
+   */
+  query: (checkoutRequestId) =>
+    request("/mpesa/query", {
+      method: "POST",
+      body: { checkout_request_id: checkoutRequestId },
+    }),
+};
+
 export { ApiError };

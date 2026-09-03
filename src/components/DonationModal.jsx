@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   X,
   CreditCard,
@@ -10,7 +10,8 @@ import {
   Sparkles,
   Receipt,
   MessageSquare,
-  LogIn
+  LogIn,
+  Loader2,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { useAppDispatch, useAppSelector } from "../store";
@@ -23,7 +24,6 @@ import {
   setPaymentMethod,
   setMpesaPhoneNumber,
   startPaymentProcessing,
-  setMpesaStkSent,
   paymentFailed,
   submitOneTimeDonation,
   submitRecurringDonation,
@@ -31,13 +31,13 @@ import {
 } from "../store/slices/donationSlice";
 import { openRoleSelect } from "../store/slices/authSlice";
 import { useToast } from "./ToastContext";
+import { mpesaApi } from "../lib/api";
 
-// NOTE on payment gateways: there are no live Stripe/PayPal/Safaricom Daraja
-// credentials configured in this project, so "charging the card" / "sending
-// the STK push" below is simulated exactly like the original mock UI. What
-// IS real: once a transaction reference is produced, it's posted to the
-// actual Flask API (POST /api/donations or /api/recurring-plans) and lands
-// in the real database — it's not pushed into a fake local array anymore.
+// How long to poll for an STK result before giving up (ms)
+const STK_POLL_TIMEOUT_MS = 90_000;
+// How often to check (ms)
+const STK_POLL_INTERVAL_MS = 3_000;
+
 const DonationModal = () => {
   const dispatch = useAppDispatch();
   const { showToast } = useToast();
@@ -51,7 +51,6 @@ const DonationModal = () => {
     paymentMethod,
     mpesaPhoneNumber,
     isProcessing,
-    mpesaStkSent,
     lastDonationSuccess,
     donationError,
   } = useAppSelector((state) => state.donation);
@@ -59,14 +58,29 @@ const DonationModal = () => {
 
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [donorMessage, setDonorMessage] = useState("");
-  const [stkPin, setStkPin] = useState("");
   const [stkStep, setStkStep] = useState("idle");
+  // "idle" | "pushing" | "waiting" | "success" | "failed"
+  const [stkMessage, setStkMessage] = useState("");
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvc, setCardCvc] = useState("");
 
+  const pollTimerRef = useRef(null);
+  const pollStartRef = useRef(null);
+  const checkoutRequestIdRef = useRef(null);
+
   const presetAmounts = currency === "USD" ? [10, 25, 50, 100] : [1000, 2500, 5000, 10000];
   const currentEffectiveAmount = customAmount ? parseFloat(customAmount) || 0 : selectedAmount;
+
+  // Clean up any running poll when modal closes
+  useEffect(() => {
+    if (!isDonationModalOpen) {
+      _stopPolling();
+      setStkStep("idle");
+      setStkMessage("");
+      checkoutRequestIdRef.current = null;
+    }
+  }, [isDonationModalOpen]);
 
   if (!isDonationModalOpen) return null;
 
@@ -83,71 +97,203 @@ const DonationModal = () => {
     activeCharityForDonation?.id &&
     currentEffectiveAmount > 0;
 
-  const handleTriggerPayment = () => {
-    if (!canSubmit) return;
-    dispatch(startPaymentProcessing());
-    if (paymentMethod === "mpesa") {
-      setTimeout(() => {
-        dispatch(setMpesaStkSent(true));
-        setStkStep("prompt");
-      }, 1000);
-    } else {
-      setTimeout(() => {
-        finalizeDonation("stripe", `pi_stripe_${Date.now()}`, `pm_stripe_${Date.now()}`);
-      }, 1500);
+  // -------------------------------------------------------------------------
+  // Polling helpers
+  // -------------------------------------------------------------------------
+  function _stopPolling() {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
     }
-  };
+  }
 
-  const handleConfirmMpesaPin = () => {
-    const receipt = `WS${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-    finalizeDonation("mpesa", receipt, mpesaPhoneNumber);
-  };
+  function _startPolling(checkoutRequestId) {
+    pollStartRef.current = Date.now();
+    checkoutRequestIdRef.current = checkoutRequestId;
 
-  // providerTransactionId: the simulated gateway reference for this charge.
-  // providerPaymentMethodId: for recurring plans only — the token/phone the
-  // backend will reuse for future charges under this plan.
-  const finalizeDonation = async (provider, providerTransactionId, providerPaymentMethodId) => {
+    pollTimerRef.current = setInterval(async () => {
+      // Timeout guard
+      if (Date.now() - pollStartRef.current > STK_POLL_TIMEOUT_MS) {
+        _stopPolling();
+        setStkStep("idle");
+        dispatch(paymentFailed("M-Pesa payment timed out. Please try again."));
+        showToast("M-Pesa payment timed out. Please try again.", "error");
+        return;
+      }
+
+      try {
+        const result = await mpesaApi.query(checkoutRequestId);
+        const code = String(result.result_code);
+
+        if (code === "0") {
+          // ✅ Payment confirmed by Daraja — now record it in our DB
+          _stopPolling();
+          setStkStep("confirmed");
+          await _recordDonationAfterMpesa();
+        } else if (code === "1032") {
+          // User cancelled on their phone
+          _stopPolling();
+          setStkStep("idle");
+          dispatch(paymentFailed("M-Pesa payment was cancelled."));
+          showToast("M-Pesa payment was cancelled.", "error");
+        } else if (code === "1037") {
+          // Timed out on Safaricom's side
+          _stopPolling();
+          setStkStep("idle");
+          dispatch(paymentFailed("M-Pesa payment timed out. Check your phone and try again."));
+          showToast("M-Pesa payment timed out.", "error");
+        }
+        // Any other code (e.g. still pending "1") → keep polling
+      } catch {
+        // Network hiccup — keep polling, don't abort
+      }
+    }, STK_POLL_INTERVAL_MS);
+  }
+
+  // -------------------------------------------------------------------------
+  // After Daraja confirms payment, record it against our API
+  // -------------------------------------------------------------------------
+  async function _recordDonationAfterMpesa() {
+    // The real receipt number arrives via the Safaricom callback to the
+    // backend and is stored automatically. Here we record the donation on
+    // behalf of the donor using the CheckoutRequestID as the transaction
+    // reference so it links back to the Daraja request. The backend's
+    // callback handler (POST /api/mpesa/callback) also records it — the
+    // UniqueConstraint on (payment_provider, provider_transaction_id)
+    // prevents duplicates, so whichever arrives first wins.
     const charityId = activeCharityForDonation.id;
     const amount = currentEffectiveAmount;
+    const txnRef = checkoutRequestIdRef.current;
 
     const action =
       frequency === "monthly"
         ? submitRecurringDonation({
             charity_id: charityId,
             amount,
-            currency,
+            currency: "KES",
             frequency: "monthly",
             day_of_month: new Date().getDate(),
             is_anonymous: isAnonymous,
-            provider,
-            provider_customer_id: provider === "mpesa" ? mpesaPhoneNumber : `cus_${user.id}`,
-            provider_payment_method_id: providerPaymentMethodId,
+            provider: "mpesa",
+            provider_customer_id: mpesaPhoneNumber,
+            provider_payment_method_id: mpesaPhoneNumber,
           })
         : submitOneTimeDonation({
             charity_id: charityId,
             amount,
-            currency,
-            payment_provider: provider,
-            provider_transaction_id: providerTransactionId,
+            currency: "KES",
+            payment_provider: "mpesa",
+            provider_transaction_id: txnRef,
             is_anonymous: isAnonymous,
           });
 
     const result = await dispatch(action);
 
     if (result.meta.requestStatus === "fulfilled") {
-      showToast(`Donation of ${currency} ${amount.toLocaleString()} processed!`, "success");
+      setStkStep("success");
+      showToast(`M-Pesa donation of KES ${amount.toLocaleString()} confirmed!`, "success");
       confetti({
         particleCount: 80,
         spread: 70,
         origin: { y: 0.6 },
         colors: ["#581c87", "#10b981", "#f59e0b", "#ec4899"],
       });
-      setStkStep("success");
     } else {
-      dispatch(paymentFailed(result.payload));
       setStkStep("idle");
-      showToast(result.payload || "Payment could not be completed", "error");
+      dispatch(paymentFailed(result.payload));
+      showToast(result.payload || "Payment could not be recorded.", "error");
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // Stripe (still simulated — no Stripe credentials yet)
+  // -------------------------------------------------------------------------
+  async function _handleStripe() {
+    dispatch(startPaymentProcessing());
+    // Replace this block with real Stripe Elements / PaymentIntent when ready
+    setTimeout(async () => {
+      const txnRef = `pi_stripe_${Date.now()}`;
+      const pmRef  = `pm_stripe_${Date.now()}`;
+      const action =
+        frequency === "monthly"
+          ? submitRecurringDonation({
+              charity_id: activeCharityForDonation.id,
+              amount: currentEffectiveAmount,
+              currency,
+              frequency: "monthly",
+              day_of_month: new Date().getDate(),
+              is_anonymous: isAnonymous,
+              provider: "stripe",
+              provider_customer_id: `cus_${user.id}`,
+              provider_payment_method_id: pmRef,
+            })
+          : submitOneTimeDonation({
+              charity_id: activeCharityForDonation.id,
+              amount: currentEffectiveAmount,
+              currency,
+              payment_provider: "stripe",
+              provider_transaction_id: txnRef,
+              is_anonymous: isAnonymous,
+            });
+
+      const result = await dispatch(action);
+      if (result.meta.requestStatus === "fulfilled") {
+        setStkStep("success");
+        showToast(`Donation of ${currency} ${currentEffectiveAmount.toLocaleString()} processed!`, "success");
+        confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+      } else {
+        dispatch(paymentFailed(result.payload));
+        showToast(result.payload || "Payment could not be completed", "error");
+      }
+    }, 1500);
+  }
+
+  // -------------------------------------------------------------------------
+  // Main payment trigger
+  // -------------------------------------------------------------------------
+  const handleTriggerPayment = async () => {
+    if (!canSubmit) return;
+
+    if (paymentMethod === "mpesa") {
+      if (!mpesaPhoneNumber || mpesaPhoneNumber.trim().length < 9) {
+        showToast("Please enter a valid Safaricom phone number.", "error");
+        return;
+      }
+      // M-Pesa must be KES
+      if (currency !== "KES") {
+        showToast("M-Pesa only accepts KES. Please switch the currency to KES.", "error");
+        return;
+      }
+
+      dispatch(startPaymentProcessing());
+      setStkStep("pushing");
+      setStkMessage("");
+
+      try {
+        const resp = await mpesaApi.stkPush({
+          phone:      mpesaPhoneNumber,
+          amount:     Math.round(currentEffectiveAmount),
+          charity_id: activeCharityForDonation.id,
+        });
+
+        setStkStep("waiting");
+        setStkMessage(resp.message || "Check your phone and enter your M-Pesa PIN.");
+        _startPolling(resp.checkout_request_id);
+      } catch (err) {
+        setStkStep("idle");
+        dispatch(paymentFailed(err.message || "Could not initiate M-Pesa payment."));
+        showToast(err.message || "Could not initiate M-Pesa payment.", "error");
+      }
+    } else {
+      await _handleStripe();
+    }
+  };
+
+  const handleCancelMpesa = () => {
+    _stopPolling();
+    setStkStep("idle");
+    setStkMessage("");
+    dispatch(paymentFailed(null));
   };
 
   const handleOpenReceiptFromModal = () => {
@@ -162,6 +308,9 @@ const DonationModal = () => {
     }
   };
 
+  // -------------------------------------------------------------------------
+  // Render
+  // -------------------------------------------------------------------------
   return (
     <div
       id="donation-modal-overlay"
@@ -223,6 +372,7 @@ const DonationModal = () => {
                 </button>
               )}
             </div>
+
           ) : !activeCharityForDonation ? (
             <div className="text-center py-8 space-y-3">
               <p className="text-sm text-slate-600">
@@ -236,7 +386,9 @@ const DonationModal = () => {
                 Browse Charities
               </button>
             </div>
+
           ) : stkStep === "success" ? (
+            /* ── Success screen ── */
             <div className="text-center py-6 space-y-4">
               <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-sm">
                 <CheckCircle2 className="w-10 h-10" />
@@ -245,7 +397,7 @@ const DonationModal = () => {
               <p className="text-sm text-slate-600 max-w-sm mx-auto">
                 Your generous gift of{" "}
                 <span className="font-bold text-purple-950">
-                  {currency} {currentEffectiveAmount.toLocaleString()}
+                  KES {currentEffectiveAmount.toLocaleString()}
                 </span>{" "}
                 has been recorded.
               </p>
@@ -263,7 +415,7 @@ const DonationModal = () => {
                 </p>
                 <p>
                   <span className="font-bold">Direct Impact:</span>{" "}
-                  {getImpactDescription(currentEffectiveAmount, currency)}
+                  {getImpactDescription(currentEffectiveAmount, "KES")}
                 </p>
               </div>
 
@@ -283,66 +435,78 @@ const DonationModal = () => {
                 </button>
               </div>
             </div>
-          ) : stkStep === "prompt" ? (
-            <div className="bg-slate-900 text-white p-6 rounded-2xl space-y-4 shadow-xl border border-slate-700 animate-in fade-in">
+
+          ) : stkStep === "pushing" || stkStep === "waiting" || stkStep === "confirmed" ? (
+            /* ── STK push in-progress screen ── */
+            <div className="bg-slate-900 text-white p-6 rounded-2xl space-y-5 shadow-xl border border-slate-700">
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                 <div className="flex items-center gap-2">
                   <Smartphone className="w-5 h-5 text-emerald-400" />
                   <span className="font-bold text-sm tracking-wide text-emerald-400">
-                    Safaricom M-PESA STK Push
+                    Safaricom M-PESA
                   </span>
                 </div>
-                <span className="text-[11px] text-slate-400 font-mono">Simulated</span>
+                <span className="text-[11px] text-slate-400 font-mono uppercase tracking-wider">
+                  {stkStep === "pushing" ? "Sending…" : stkStep === "confirmed" ? "Verifying…" : "Awaiting PIN"}
+                </span>
               </div>
 
-              <div className="text-center py-2">
-                <p className="text-xs text-slate-300">Prompt dispatched to</p>
-                <p className="text-base font-bold text-white font-mono">{mpesaPhoneNumber}</p>
-                <p className="text-xs text-slate-400 mt-2">
-                  Paybill: <span className="text-white font-semibold">892011</span> | Account:{" "}
-                  <span className="text-white font-semibold">TUINUE</span>
-                </p>
-                <p className="text-lg font-bold text-emerald-400 mt-1">
-                  KES {currentEffectiveAmount.toLocaleString()}
-                </p>
-              </div>
+              <div className="text-center py-4 space-y-3">
+                <Loader2 className="w-10 h-10 text-emerald-400 animate-spin mx-auto" />
 
-              <div className="space-y-2">
-                <label className="block text-xs text-slate-300 font-semibold">
-                  Enter 4-Digit M-Pesa PIN to Authorize:
-                </label>
-                <input
-                  type="password"
-                  maxLength={4}
-                  placeholder="••••"
-                  value={stkPin}
-                  onChange={(e) => setStkPin(e.target.value)}
-                  className="w-full text-center tracking-widest text-xl font-mono py-2 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
+                {stkStep === "pushing" && (
+                  <p className="text-sm text-slate-300">
+                    Sending STK push to <span className="font-bold text-white font-mono">{mpesaPhoneNumber}</span>…
+                  </p>
+                )}
+
+                {stkStep === "waiting" && (
+                  <>
+                    <p className="text-sm text-slate-300">
+                      Prompt sent to <span className="font-bold text-white font-mono">{mpesaPhoneNumber}</span>
+                    </p>
+                    <p className="text-xs text-slate-400">{stkMessage}</p>
+                    <div className="bg-slate-800 rounded-xl p-3 text-left space-y-1 text-xs">
+                      <p className="text-slate-400">
+                        Paybill: <span className="text-white font-semibold">892011</span>
+                      </p>
+                      <p className="text-slate-400">
+                        Account: <span className="text-white font-semibold">TUINUE</span>
+                      </p>
+                      <p className="text-lg font-bold text-emerald-400">
+                        KES {currentEffectiveAmount.toLocaleString()}
+                      </p>
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      Enter your M-Pesa PIN on your phone to complete the payment.
+                      This screen updates automatically.
+                    </p>
+                  </>
+                )}
+
+                {stkStep === "confirmed" && (
+                  <p className="text-sm text-slate-300">
+                    Payment confirmed — recording your donation…
+                  </p>
+                )}
               </div>
 
               {donationError && (
                 <p className="text-rose-400 text-xs text-center">{donationError}</p>
               )}
 
-              <div className="flex gap-2 pt-2">
+              {stkStep === "waiting" && (
                 <button
-                  onClick={() => setStkStep("idle")}
-                  className="w-1/2 py-2.5 text-xs font-semibold text-slate-400 hover:text-white bg-slate-800 rounded-xl"
+                  onClick={handleCancelMpesa}
+                  className="w-full py-2.5 text-xs font-semibold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors"
                 >
-                  Cancel
+                  Cancel Payment
                 </button>
-                <button
-                  id="btn-confirm-stk-pin"
-                  disabled={isProcessing}
-                  onClick={handleConfirmMpesaPin}
-                  className="w-1/2 py-2.5 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-xl transition-colors disabled:opacity-60"
-                >
-                  {isProcessing ? "Confirming…" : "Confirm & Authorize"}
-                </button>
-              </div>
+              )}
             </div>
+
           ) : (
+            /* ── Main donation form ── */
             <>
               {donationError && (
                 <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
@@ -457,8 +621,8 @@ const DonationModal = () => {
                 </div>
 
                 {paymentMethod === "mpesa" ? (
-                  <div className="mt-3">
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                  <div className="mt-3 space-y-2">
+                    <label className="block text-[11px] font-bold text-slate-600">
                       M-Pesa Mobile Number (Safaricom)
                     </label>
                     <div className="relative">
@@ -472,12 +636,16 @@ const DonationModal = () => {
                         className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none font-medium"
                       />
                     </div>
+                    {currency !== "KES" && (
+                      <p className="text-[10px] text-amber-600 font-medium">
+                        ⚠ M-Pesa only accepts KES. Please switch the currency above.
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <div className="mt-3 space-y-2">
                     <p className="text-[10px] text-slate-400">
-                      No live Stripe integration is wired up — this is a simulated card form for
-                      the demo checkout flow.
+                      Stripe integration coming soon — card form is a placeholder.
                     </p>
                     <input
                       type="text"
@@ -530,9 +698,6 @@ const DonationModal = () => {
                   onChange={(e) => setDonorMessage(e.target.value)}
                   className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-700 focus:outline-none"
                 />
-                <p className="text-[10px] text-slate-400">
-                  Notes aren't stored by the API yet — this stays local to this checkout.
-                </p>
               </div>
 
               <button
@@ -544,7 +709,7 @@ const DonationModal = () => {
                 <Lock className="w-3.5 h-3.5 text-purple-300" />
                 <span>
                   {isProcessing
-                    ? "Connecting to Gateway..."
+                    ? "Connecting to M-Pesa…"
                     : `Authorize ${frequency === "monthly" ? "Monthly Sustaining " : ""}Donation (${currency} ${currentEffectiveAmount.toLocaleString()})`}
                 </span>
                 <ArrowRight className="w-3.5 h-3.5" />
